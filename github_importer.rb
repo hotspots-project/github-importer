@@ -11,7 +11,6 @@ require 'logger'      # Logs debug statements
 set :port, 3000
 set :bind, '0.0.0.0'
 
-
 # This is template code to create a GitHub App server.
 # You can read more about GitHub Apps here: # https://developer.github.com/apps/
 #
@@ -44,8 +43,8 @@ class GHAapp < Sinatra::Application
   # Turn on Sinatra's verbose logging during development
   configure :development do
     set :logging, Logger::DEBUG
+    set :issue_log, Hash.new
   end
-
 
   # Before each request to the `/event_handler` route
   before '/event_handler' do
@@ -102,7 +101,9 @@ class GHAapp < Sinatra::Application
     def handle_comment_created_event(payload)
       repo = payload['repository']['full_name']
       issue_number = payload['issue']['number']
-      logger.debug "A comment was created from #{repo} with ##{issue_number}"
+      issue = @installation_client.issue(repo, issue_number)
+      logger.debug "A comment was created from #{repo} with ##{issue_number}, which has #{issue.comments} comments."
+      settings.issue_log[issue_number] = issue.comments
     end
 
     # Saves the raw payload and converts the payload to JSON format
