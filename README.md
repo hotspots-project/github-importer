@@ -8,7 +8,7 @@ The development setup follows https://developer.github.com/apps/quickstart-guide
 
 ## Step 0: Install and configure environment variables
 
-To run the code, make sure you have [Bundler](http://gembundler.com/) installed; then enter `bundle install` on the command line.
+To run the code, make sure you have [Bundler](https://bundler.io) installed; then enter `bundle install` on the command line.
 
 Create a copy of the `.env-example` file called `.env`.
 
