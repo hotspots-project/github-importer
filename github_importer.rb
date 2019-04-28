@@ -1,4 +1,5 @@
 # coding: utf-8
+require 'set'
 require 'sinatra'
 require 'octokit'
 require 'dotenv/load' # Manages environment variables
@@ -103,7 +104,18 @@ class GHAapp < Sinatra::Application
       issue_number = payload['issue']['number']
       issue = @installation_client.issue(repo, issue_number)
       logger.debug "A comment was created from #{repo} with ##{issue_number}, which has #{issue.comments} comments."
-      settings.issue_log[issue_number] = issue.comments
+
+      set = Set[]
+      for comment in @installation_client.issue_comments(repo, issue_number)
+        set.add(comment.user.id)
+      end
+      number_of_participants = set.size
+      logger.debug "and #{number_of_participants} distinct participants."
+
+      settings.issue_log[issue_number] = {
+        "num_comments":issue.comments,
+        "num_participants":set.size,
+      }
     end
 
     # Saves the raw payload and converts the payload to JSON format
