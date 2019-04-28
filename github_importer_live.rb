@@ -12,22 +12,13 @@ require 'logger'      # Logs debug statements
 set :port, 3000
 set :bind, '0.0.0.0'
 
-# This is template code to create a GitHub App server.
-# You can read more about GitHub Apps here: # https://developer.github.com/apps/
+###########################################################################
 #
-# On its own, this app does absolutely nothing, except that it can be installed.
-# It's up to you to add functionality!
-# You can check out one example in advanced_server.rb.
+# Live importer for hotspots
 #
-# This code is a Sinatra app, for two reasons:
-#   1. Because the app will require a landing page for installation.
-#   2. To easily handle webhook events.
-#
-# Of course, not all apps need to receive and process events!
-# Feel free to rip out the event handling code if you don't need it.
-#
-# Have fun!
-#
+# This is a "github app" that receives webhook events. It will update
+# its view of the active comments as events are received. You can
+# fetch current view by accessing `/issue_log` at any time.
 
 class GHAapp < Sinatra::Application
 
