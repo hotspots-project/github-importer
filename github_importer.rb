@@ -60,6 +60,9 @@ class GHAapp < Sinatra::Application
     authenticate_installation(@payload)
   end
 
+  get '/issue_log' do
+    settings.issue_log.to_json
+  end
 
   post '/event_handler' do
 
