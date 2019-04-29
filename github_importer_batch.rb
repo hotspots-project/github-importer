@@ -1,7 +1,6 @@
 # coding: utf-8
 require 'set'
 require 'octokit'
-require 'dotenv/load' # Manages environment variables
 require 'json'
 require 'openssl'     # Verifies the webhook signature
 require 'jwt'         # Authenticates a GitHub App
@@ -13,27 +12,24 @@ require 'netrc'
 #
 # Batch importer for hotspots
 #
-# This code will speed an entire repository and dump all of the events
-# etc. For now it's just using an auth token.
-
-# Expects that the private key in PEM format. Converts the newlines
-PRIVATE_KEY = OpenSSL::PKey::RSA.new(ENV['GITHUB_PRIVATE_KEY'].gsub('\n', "\n"))
-
-# Your registered app must have a secret set. The secret is used to verify
-# that webhooks are sent by GitHub.
-WEBHOOK_SECRET = ENV['GITHUB_WEBHOOK_SECRET']
-
-# The GitHub App's identifier (type integer) set when registering an app.
-APP_IDENTIFIER = ENV['GITHUB_APP_IDENTIFIER']
-
+# Scan all issue in a repository and extract the information necessary to
+# detect hotspots. If you provide authentication information in a
+# ~/.netrc file, it will be used, but it is not necessary for public projects.
 class BatchImporter
-  def run
-    @issue_log = {}
-    @client = Octokit::Client.new(:netrc => true)
 
-    # Configuration that SHOULD be supplied on the command line
-    repo = 'nikomatsakis/dummy'
-    max_pages = 3
+  def initialize
+    # TODO: Configuration that SHOULD be supplied on the command line
+    @repo = 'nikomatsakis/dummy'
+    @authenticate = false
+    @max_pages = 3
+    @issue_log = {}
+    # If you have a ~/.netrc file, use it (not necessary for public projects)
+    @client = Octokit::Client.new(:netrc => true)
+  end
+
+  def run
+    repo = @repo
+    max_pages = @max_pages
 
     # Load first page of issues
     issues = @client.issues(repo)
