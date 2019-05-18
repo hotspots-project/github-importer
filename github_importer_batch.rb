@@ -7,6 +7,18 @@ require "jwt"         # Authenticates a GitHub App
 require "time"        # Gets ISO 8601 representation of a Time object
 require "logger"      # Logs debug statements
 require "netrc"
+require "pathname"
+
+module Helpers
+  def self.repo_to_folder(repo)
+    repo.split("/").join("_")
+  end
+
+  def self.repo_to_issues_filename(repo)
+    Pathname.new(repo_to_folder repo) + "issues.json"
+  end
+
+end
 
 ###########################################################################
 #
@@ -18,9 +30,8 @@ require "netrc"
 # The default processor extracts the information necessary to
 # detect hotspots.
 class RepoLiveBatchImporter
-  def initialize(processor = nil)
-    # TODO: Configuration that SHOULD be supplied on the command line
-    @repo = "nikomatsakis/dummy"
+  def initialize(repo, processor = nil)
+    @repo = repo
     @max_pages = 3
     # If you have a ~/.netrc file, use it (not necessary for public projects)
     @client = Octokit::Client.new(:netrc => true)
@@ -37,7 +48,7 @@ class RepoLiveBatchImporter
 
     # Walk page by page and get data from the issue; kind of inelegant
     # code.
-    @processor.will_process(max_pages)
+    @processor.will_process(repo, max_pages)
     while max_pages > 0
       for issue in issues
         @processor.process_issue(repo, issue)
@@ -59,14 +70,30 @@ class RepoLiveBatchImporter
 end
 
 ##
-# Extract the information necessary to compute hotspots from issues 
+# Abstract superclass for repo processors.
 #
-class RepoToHotspotProcessor
+class AbstractRepoProcessor
+  attr_accessor :repo
   def initialize
-    @issue_log = {}
   end
 
-  def will_process(max_number_of_pages)
+  def will_process(repo, max_number_of_pages)
+    self.repo = repo
+  end
+
+  def process_issue(repo, issue)
+  end
+
+  def did_process
+  end
+end
+
+##
+# Extract the information necessary to compute hotspots from issues
+#
+class RepoToHotspotProcessor < AbstractRepoProcessor
+  def initialize
+    @issue_log = {}
   end
 
   # TODO: Extract this code to a separate module
@@ -87,7 +114,6 @@ class RepoToHotspotProcessor
     #  set.add(comment.user.id)
     #end
 
-    # puts issue.to_h
     number_of_participants = set.size
     @issue_log[issue_number] = {
       "num_comments": issue.comments,
@@ -100,21 +126,41 @@ class RepoToHotspotProcessor
   end
 end
 
-# TODO: Implement a processor that stores the comments to a file/folder
-class RepoToFileProcessor
+
+##
+# Store the issues in a file
+#
+# A more robust implementation would write each page to a file,
+# but this keeps all issues in memory and then writes the result to
+# one file. Someone the improve in the future.
+#
+class RepoToFileProcessor < AbstractRepoProcessor
   def initialize
-
-  end
-
-  def will_process(max_number_of_pages)
+    @output_folder = nil
+    @issues = []
   end
 
   def process_issue(repo, issue)
-
+    @issues << issue.to_h
   end
 
   def did_process
+    unless @output_folder
+      @output_folder = Helpers.repo_to_folder(self.repo)
+    end
+
+    unless Dir.exists?(@output_folder)
+      Dir.mkdir(@output_folder)
+    end
+    
+    outpath = Helpers.repo_to_issues_filename(self.repo)
+
+    File.open(outpath, "w") do |file|
+      JSON.dump(@issues, file)
+    end
+    puts "Wrote issues to #{outpath}"
   end
+
 end
 
 ##
@@ -159,4 +205,10 @@ class RepoFileBatchImporter
   end
 end
 
-RepoLiveBatchImporter.new.run
+repo = "nikomatsakis/dummy"
+issues_path = Helpers.repo_to_issues_filename(repo)
+if File.exists? issues_path
+  puts "Issues are already cached in #{issues_path}. Nothing to do."
+else
+  RepoLiveBatchImporter.new(repo, RepoToFileProcessor.new).run
+end
